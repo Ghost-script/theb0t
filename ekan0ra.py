@@ -204,7 +204,7 @@ class LogBot(irc.IRCClient):
         user = user.split('!', 1)[0]
         if self.islogging:
             self.logger.log("* %s %s" % (user, msg))
-            pass
+            
 
     # irc callbacks
 
@@ -214,7 +214,7 @@ class LogBot(irc.IRCClient):
         new_nick = params[0]
         if self.islogging:
             self.logger.log("%s is now known as %s" % (old_nick, new_nick))
-            pass
+            
 
     def userLeft(self,user,channel):
         self.updateLastSeen(user)
