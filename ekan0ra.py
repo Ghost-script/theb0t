@@ -10,7 +10,11 @@ import sys
 import os
 import datetime
 import config as conf
+
 import json
+
+
+from collections import deque
 
 import fpaste
 
@@ -25,6 +29,8 @@ commands = [
     ('startclass', 'start logging the class'),
     ('endclass', 'ends logging the class'),
     ('pingall:[message]', 'pings the message to all'),
+    ('lastwords:[nick]','show last 10 lines of the user'),
+    ('lastseen:[nick]','shows last seen datetime'),
     ('help', 'list all the commands'),
     ('.link [portal]', 'Returns the link of the portal')
 ]
@@ -64,6 +70,8 @@ class LogBot(irc.IRCClient):
         self.qs_queue = []
         self.links_reload()
         self.logger = None
+        self.lastseen = {}
+        self.lastspoken = {}
 
     def clearqueue(self):
         self.qs_queue = []
@@ -82,15 +90,14 @@ class LogBot(irc.IRCClient):
                         time.asctime(time.localtime(time.time())))
         user = user.split('!', 1)[0]
         self.logger.log("<%s> %s" % (user, msg))
-        self.islogging = True
+        self.islogging = False
 
     def stoplogging(self, channel):
         if not self.logger:
             return
-        self.logger.log("[## Class Ended at %s ##]" %
-                        time.asctime(time.localtime(time.time())))
+        self.logger.log("[## Class Ended at %s ##]" % time.asctime(time.localtime(time.time())))
         self.logger.close()
-        # self.upload_logs(channel)
+        self.upload_logs(channel)
         self.islogging = False
 
     def connectionLost(self, reason):
@@ -117,6 +124,7 @@ class LogBot(irc.IRCClient):
     def privmsg(self, user, channel, msg):
         """This will get called when the bot receives a message."""
         user = user.split('!', 1)[0]
+        self.updateLastSeen(user)
         if self.islogging:
             user = user.split('!', 1)[0]
             self.logger.log("<%s> %s" % (user, msg))
@@ -173,6 +181,21 @@ class LogBot(irc.IRCClient):
             for command, help_txt in commands:
                 self.msg(user, help_template.format(command=command,
                                                     help_text=help_txt))
+        if msg.startswith('lastwords'):
+            nick = msg.split(':')[-1]
+            if nick in self.lastspoken:
+                for i in self.lastspoken[nick]:
+                    self.msg(channel,i)
+
+        if msg.startswith('lastseen'):
+            nick = msg.split(':')[-1]
+            self.names(channel).addCallback(self.activityTracker,nick=nick,channel=channel)
+
+        if user in self.lastspoken:
+            self.lastspoken[user].append(msg)
+        else:
+            self.lastspoken[user] = deque(maxlen=10)
+            self.lastspoken[user].append(msg)
 
         if channel == self.nickname:
 
@@ -198,6 +221,7 @@ class LogBot(irc.IRCClient):
         user = user.split('!', 1)[0]
         if self.islogging:
             self.logger.log("* %s %s" % (user, msg))
+            pass
 
     # irc callbacks
 
@@ -207,6 +231,32 @@ class LogBot(irc.IRCClient):
         new_nick = params[0]
         if self.islogging:
             self.logger.log("%s is now known as %s" % (old_nick, new_nick))
+            pass
+
+    def userLeft(self,user,channel):
+        self.updateLastSeen(user)
+
+    def userQuit(self,user,quitMessage):
+        self.updateLastSeen(user)
+
+    def uesrJoined(self,nick,channel):
+        self.updateLastSeen(user)
+
+    def updateLastSeen(self,user):
+        self.lastseen[user]=datetime.datetime.now().strftime('%c')
+
+    def activityTracker(self,nicklist,nick,channel):
+        if nick in nicklist:
+            if self.lastseen.get(nick):
+                self.msg(channel, "%s is online now, last activity at %s" % (nick,self.lastseen[nick]))
+            else:
+                self.msg(channel, "%s is online now, last activity not known" % (nick))
+
+        else:
+            if nick in self.lastseen:
+                self.msg(channel,"last seen activity was on %s"%self.lastseen[nick])
+            else:
+                self.msg(channel,"no data found")
 
     # For fun, override the method that determines how a nickname is changed on
     # collisions. The default method appends an underscore.
