@@ -154,6 +154,14 @@ class LogBot(irc.IRCClient):
                 self.channel_admin = filter(lambda x: x != name, self.channel_admin)
             except Exception, err:
                 print err
+        
+        if msg.startswith('s\\'):
+            wordlist = msg.split('\\')[1::]
+            line = self.lastspoken[user][-1]
+            for target,replace in zip(wordlist[0::2],wordlist[1::2]):
+                line = line.replace(target,replace)
+            statement = "what {user} meant is , {line}".format(user=user,line=line)
+            self.msg(channel,statement)
 
         if msg == 'help':
             for command, help_txt in commands:
@@ -162,8 +170,8 @@ class LogBot(irc.IRCClient):
         if msg.startswith('lastwords'):
             nick = msg.split(':')[-1]
             if nick in self.lastspoken:
-                for i in self.lastspoken[nick]:
-                    self.msg(channel,i)
+                for line in self.lastspoken[nick]:
+                    self.msg(channel,line)
 
         if msg.startswith('lastseen'):
             nick = msg.split(':')[-1]
