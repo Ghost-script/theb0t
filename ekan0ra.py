@@ -10,12 +10,9 @@ import sys
 import os
 import datetime
 import config as conf
-
 import json
 
-
 from collections import deque
-
 import fpaste
 
 commands = [
@@ -176,7 +173,7 @@ class LogBot(irc.IRCClient):
                     lambda x: x != name, self.channel_admin)
             except Exception, err:
                 print err
-        
+
         if msg.startswith('s\\'):
             wordlist = msg.split('\\')[1::]
             line = self.lastspoken[user][-1]
@@ -198,6 +195,7 @@ class LogBot(irc.IRCClient):
         if msg.startswith('lastseen'):
             nick = msg.split(':')[-1]
             self.names(channel).addCallback(self.activityTracker,nick=nick,channel=channel)
+
 
         if user in self.lastspoken:
             self.lastspoken[user].append(msg)
@@ -229,7 +227,6 @@ class LogBot(irc.IRCClient):
         user = user.split('!', 1)[0]
         if self.islogging:
             self.logger.log("* %s %s" % (user, msg))
-            
 
     # irc callbacks
 
@@ -239,7 +236,6 @@ class LogBot(irc.IRCClient):
         new_nick = params[0]
         if self.islogging:
             self.logger.log("%s is now known as %s" % (old_nick, new_nick))
-            
 
     def userLeft(self,user,channel):
         self.updateLastSeen(user)
@@ -259,7 +255,6 @@ class LogBot(irc.IRCClient):
                 self.msg(channel, "%s is online now, last activity at %s" % (nick,self.lastseen[nick]))
             else:
                 self.msg(channel, "%s is online now, last activity not known" % (nick))
-
         else:
             if nick in self.lastseen:
                 self.msg(channel,"last seen activity was on %s"%self.lastseen[nick])
